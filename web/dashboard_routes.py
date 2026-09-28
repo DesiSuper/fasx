@@ -76,7 +76,9 @@ CARD_CSS = """
 JS_ENGINE = """
 var curQ='',curOff=0,nextOff='',curCol='all',curPage=1;
 var searchReqId=0;
-var pMode=localStorage.getItem('posterMode')||'__DEFAULT_MEDIA_MODE__';
+// Dashboard mode has its own preference key so an old shared posterMode value
+// cannot override the text-only dashboard default.
+var pMode=localStorage.getItem('ff_dashboard_mode')||'__DEFAULT_MEDIA_MODE__';
 var LIMIT_VAL = __LIMIT_PLACEHOLDER__;
 
 function closeCdds(){
@@ -112,7 +114,7 @@ function pickCol(val,label,el,e){
 function pickMode(val,label,el,e){
     if(e){e.stopPropagation();}
     pMode=val;
-    localStorage.setItem('posterMode',pMode);
+    localStorage.setItem('ff_dashboard_mode',pMode);
     document.getElementById('cddModeLabel').textContent=label;
     document.querySelectorAll('#cddModeMenu .cdd-item').forEach(function(i){i.classList.remove('selected');});
     el.classList.add('selected');
@@ -279,15 +281,15 @@ document.addEventListener('DOMContentLoaded',function(){
     }
     var mItems=document.querySelectorAll('#cddModeMenu .cdd-item');
     mItems.forEach(function(i){i.classList.remove('selected');if(i.dataset.val===pMode)i.classList.add('selected');});
-    document.getElementById('cddModeLabel').textContent=(pMode==='none')?'\u26a1 Text Only (Fastest)':'\ud83d\udcf8 Original TG Thumb';
+    document.getElementById('cddModeLabel').textContent=(pMode==='none')?'\ud83d\udcc4 Text Mode':'\ud83d\uddbc\ufe0f Poster Mode';
     var savedQ=sessionStorage.getItem('ff_dash_q');
     if(savedQ && q){q.value=savedQ;doSearch(0);}else{doSearch(0,true);}
 });
 """.replace("__LIMIT_PLACEHOLDER__", str(MAX_WEB_RESULTS)).replace("__DEFAULT_MEDIA_MODE__", DEFAULT_MEDIA_MODE)
 
 # 🎛️ Default mode dropdown state (centralized via DEFAULT_MEDIA_MODE in web_assets.py)
-_MODE_TG_LBL = '\U0001f4f8 Original TG Thumb'
-_MODE_NONE_LBL = '\u26a1 Text Only (Fastest)'
+_MODE_TG_LBL = '\U0001f5bc\ufe0f Poster Mode'
+_MODE_NONE_LBL = '\U0001f4c4 Text Mode'
 _DEF_MODE_LBL = _MODE_NONE_LBL if DEFAULT_MEDIA_MODE == 'none' else _MODE_TG_LBL
 _SEL_TG = ' selected' if DEFAULT_MEDIA_MODE == 'tg' else ''
 _SEL_NONE = ' selected' if DEFAULT_MEDIA_MODE == 'none' else ''
@@ -322,8 +324,8 @@ SEARCH_ZONE = (
                 '</div>'
                 '<span class="cdd-arrow">&#9660;</span>'
                 '<div class="cdd-menu" id="cddModeMenu" style="display:none">'
-                    '<div class="cdd-item' + _SEL_TG + '" data-val="tg" onclick="pickMode(\'tg\',\'\U0001f4f8 Original TG Thumb\',this)">\U0001f4f8 Original TG Thumb<span class="cdd-radio"><span class="cdd-radio-dot"></span></span></div>'
-                    '<div class="cdd-item' + _SEL_NONE + '" data-val="none" onclick="pickMode(\'none\',\'\u26a1 Text Only (Fastest)\',this)">\u26a1 Text Only (Fastest)<span class="cdd-radio"><span class="cdd-radio-dot"></span></span></div>'
+                    '<div class="cdd-item' + _SEL_TG + '" data-val="tg" onclick="pickMode(\'tg\',\'\U0001f5bc\ufe0f Poster Mode\',this)">\U0001f5bc\ufe0f Poster Mode<span class="cdd-radio"><span class="cdd-radio-dot"></span></span></div>'
+                    '<div class="cdd-item' + _SEL_NONE + '" data-val="none" onclick="pickMode(\'none\',\'\U0001f4c4 Text Mode\',this)">\U0001f4c4 Text Mode<span class="cdd-radio"><span class="cdd-radio-dot"></span></span></div>'
                 '</div>'
             '</div>'
         '</div>'
