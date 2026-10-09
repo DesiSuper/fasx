@@ -56,6 +56,24 @@ VIDEO_EXTS = frozenset({
 # ─────────────────────────────────────────────────────────
 # 🎬 PROBE KARNA CHAHIYE YA NAHI (gating — faltu download roko)
 # ─────────────────────────────────────────────────────────
+def _name_ext(file_name):
+    """File ka extension (lowercase, bina dot) — 'a.b.mkv' aur cleaned 'a b mkv' dono se.
+
+    ⚠️ Indexing/save_file file_name me '.' ko space bana dete hain ('Movie.mkv' →
+    'Movie mkv'), isliye sirf rsplit('.') par bharosa karne se extension kho jaata tha.
+    Dot na ho to aakhri word ko extension maante hain (sirf tab jab wo known video ext ho).
+    """
+    name = str(file_name or "").strip().lower()
+    if not name:
+        return ""
+    if "." in name:
+        ext = name.rsplit(".", 1)[-1].strip()
+        if ext and " " not in ext:
+            return ext
+    last = name.rsplit(None, 1)[-1] if name.split() else ""
+    return last if ("." + last) in VIDEO_EXTS else ""
+
+
 def should_probe_media(media, file_name=""):
     """Sirf video-ish media par probe karo (PDF/MP3 par bandwidth waste nahi).
 
@@ -74,9 +92,8 @@ def should_probe_media(media, file_name=""):
     mime = (getattr(media, "mime_type", None) or "").lower()
     if mime.startswith("video/"):
         return True
-    name = str(file_name or getattr(media, "file_name", "") or "").lower()
-    dot = name.rfind(".")
-    if dot != -1 and name[dot:] in VIDEO_EXTS:
+    ext = _name_ext(file_name or getattr(media, "file_name", "") or "")
+    if ext and ("." + ext) in VIDEO_EXTS:
         return True
     return False
 
@@ -595,9 +612,7 @@ def probe_bytes(head, tail=None, file_name=""):
                     dur = dur2
         else:
             # magic anjaana — extension hint par ek koshish (bharosa magic par hi)
-            ext = ""
-            if file_name and "." in str(file_name):
-                ext = str(file_name).rsplit(".", 1)[-1].lower()
+            ext = _name_ext(file_name)
             if ext in ("mp4", "m4v", "mov"):
                 w, h, dur = parse_mp4(head)
                 if (w <= 0 or h <= 0) and tail and len(tail) >= 64:
@@ -759,8 +774,8 @@ async def probe_telegram_file(client, file_ref, file_size=0, file_name="",
     tail = None
     try:
         is_mp4 = len(head) >= 12 and bytes(head[4:8]) == b"ftyp"
-        if not is_mp4 and file_name and "." in str(file_name):
-            is_mp4 = str(file_name).rsplit(".", 1)[-1].lower() in ("mp4", "m4v", "mov")
+        if not is_mp4 and file_name:
+            is_mp4 = _name_ext(file_name) in ("mp4", "m4v", "mov")
         if is_mp4 and file_size and file_size > (head_mb + 1) * 1024 * 1024:
             total_mb = max(int(file_size) // (1024 * 1024), 1)
             tail_off = max(0, total_mb - tail_mb)
