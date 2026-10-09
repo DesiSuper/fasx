@@ -6,7 +6,7 @@ import gc
 from hydrogram import Client, filters, enums
 from hydrogram.errors import FloodWait
 from info import ADMINS, LOG_CHANNEL
-from database.ia_filterdb import save_file
+from database.ia_filterdb import save_file, file_already_indexed
 from media_probe import probe_telegram_file, should_probe_media
 from hydrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from utils import temp, get_readable_time
@@ -257,6 +257,11 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot, skip, collection_type="p
                         media.file_name = re.sub(r"@\w+|(_|\-|\.|\+)", " ", str(media.file_name)).strip()
                 except:
                     pass
+
+                # ♻️ Duplicate hai to probe (2-6 MB download) bilkul mat karo
+                if await file_already_indexed(media, collection_type):
+                    duplicate += 1
+                    continue
 
                 # 🔍 Asli w/h/duration file BYTES se probe — nayi files me wahi
                 # 1280×720-default gadbad na aaye jo purani files me aayi thi
