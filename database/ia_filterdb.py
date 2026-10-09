@@ -10,6 +10,7 @@ from hydrogram.file_id import FileId
 from hydrogram.errors import FloodWait
 from info import DATABASE_URL, DATABASE_NAME, USE_CAPTION_FILTER, DELETE_CHANNEL
 from utils import temp
+from media_probe import should_probe_media
 
 logger = logging.getLogger(__name__)
 
@@ -355,6 +356,21 @@ async def mark_meta_migration_error(col, file_id):
 # ─────────────────────────────────────────────────────────
 # 💾 SAVE FILE
 # ─────────────────────────────────────────────────────────
+async def file_already_indexed(media, collection_type="primary"):
+    """True agar ye file is collection me pehle se hai (save_file 'dup' deta).
+
+    ✅ Index plugin isse PEHLE check karta hai, taaki duplicate file ke liye
+    2-6 MB probe download bekaar na ho (re-index par hazaaron files duplicate hoti hain).
+    """
+    try:
+        file_id = unpack_new_file_id(media.file_id)
+        if not file_id:
+            return False
+        col = COLLECTIONS.get(collection_type, primary)
+        return bool(await col.find_one({"_id": file_id}, {"_id": 1}))
+    except Exception:
+        return False  # shak ho to normal flow (save_file khud dup pakad leta hai)
+
 async def save_file(media, collection_type="primary", probed=None):
     try:
         file_id = unpack_new_file_id(media.file_id)
@@ -385,6 +401,15 @@ async def save_file(media, collection_type="primary", probed=None):
                 probed_dur = 0
         duration = probed_dur if probed_dur > 0 else int(getattr(media, "duration", 0) or 0)
         meta = build_media_meta(media, probed)
+
+        # ⚠️ Video-ish file par probe fail/khali raha → w/h Telegram attributes se aaye
+        # hain (jo jhoothe, jaise default 1280×720, ho sakte hain). Aise doc par v=2
+        # likh dete to /migrate_meta use kabhi dobara nahi uthata aur galat resolution
+        # hamesha ke liye rah jaata. Isliye v=1 (pending) — migration retry karega.
+        # (web/search_api.py ka lazy backfill bhi yahi karta hai.)
+        if should_probe_media(media, getattr(media, "file_name", "") or "") \
+                and not (probed and probed.get("w") and probed.get("h")):
+            meta["v"] = 1
 
         # ✅ meta ko dotted keys ($set: {"meta.w": ...}) se likhna zaroori hai —
         # agar poora "meta" sub-document ek $set me bhejte, to future me kisi
